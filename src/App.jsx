@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { getAgentArgument } from "./services/geminiService";
+import { getAgentArgument } from "./services/grogService";
 import TopicInput from "./components/TopicInput";
 import AgentBubble from "./components/AgentBubble";
 import DebateHeader from "./components/DebateHeader";
