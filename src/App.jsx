@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { getAgentArgument } from "./services/geminiService";
+import { getAgentArgument } from "./services/grogService";
 import TopicInput from "./components/TopicInput";
 import AgentBubble from "./components/AgentBubble";
 import DebateHeader from "./components/DebateHeader";
@@ -62,7 +62,7 @@ export default function App() {
       const isLastTurn = side === "against" && currentRound === TOTAL_ROUNDS;
 
       if (isLastTurn) {
-        setTimeout(() => setScreen("vote"), 1200);
+        setTimeout(() => setScreen("vote"), 5000);
         return;
       }
 
@@ -71,7 +71,7 @@ export default function App() {
 
       setTimeout(() => {
         runTurn(nextSide, currentTopic || topic, nextHistory, nextRound, nextRound === TOTAL_ROUNDS && nextSide === "against");
-      }, 800);
+      }, 4000);
 
     } catch (err) {
       console.error(err);
