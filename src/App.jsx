@@ -1,121 +1,117 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { useState, useRef, useEffect } from "react";
+import { getAgentArgument } from "./services/claudeService";
+import TopicInput from "./components/TopicInput";
+import AgentBubble from "./components/AgentBubble";
+import DebateHeader from "./components/DebateHeader";
+import VoteScreen from "./components/VoteScreen";
+import "./styles/global.css";
 
-function App() {
-  const [count, setCount] = useState(0)
+const TOTAL_ROUNDS = 3;
+
+export default function App() {
+  const [screen, setScreen] = useState("input");
+  const [topic, setTopic] = useState("");
+  const [debateStyle, setDebateStyle] = useState("formal");
+  const [messages, setMessages] = useState([]);
+  const [history, setHistory] = useState([]);
+  const [round, setRound] = useState(1);
+  const [isLoading, setIsLoading] = useState(false);
+  const [currentSide, setCurrentSide] = useState("for");
+  const bottomRef = useRef(null);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  const startDebate = async ({ topic, style }) => {
+    setTopic(topic);
+    setDebateStyle(style);
+    setScreen("debate");
+    setMessages([]);
+    setHistory([]);
+    setRound(1);
+    setCurrentSide("for");
+    await runTurn("for", topic, [], 1, false);
+  };
+
+  const runTurn = async (side, currentTopic, currentHistory, currentRound, isClosing) => {
+    setIsLoading(true);
+    setCurrentSide(side);
+
+    const loadingMsg = { id: Date.now(), side, round: currentRound, text: "", isLoading: true };
+    setMessages(prev => [...prev, loadingMsg]);
+
+    try {
+      const text = await getAgentArgument({
+        topic: currentTopic || topic,
+        side,
+        history: currentHistory,
+        round: currentRound,
+        totalRounds: TOTAL_ROUNDS,
+        isClosing,
+      });
+
+      const newMessage = { role: "assistant", content: `[${side.toUpperCase()}]: ${text}` };
+      const nextHistory = [...currentHistory, newMessage];
+
+      setMessages(prev => prev.map(m => m.id === loadingMsg.id ? { ...m, text, isLoading: false } : m));
+      setHistory(nextHistory);
+      setIsLoading(false);
+
+      const nextSide = side === "for" ? "against" : "for";
+      const isLastTurn = side === "against" && currentRound === TOTAL_ROUNDS;
+
+      if (isLastTurn) {
+        setTimeout(() => setScreen("vote"), 1200);
+        return;
+      }
+
+      const nextRound = side === "against" ? currentRound + 1 : currentRound;
+      if (side === "against") setRound(nextRound);
+
+      setTimeout(() => {
+        runTurn(nextSide, currentTopic || topic, nextHistory, nextRound, nextRound === TOTAL_ROUNDS && nextSide === "against");
+      }, 800);
+
+    } catch (err) {
+      console.error(err);
+      setIsLoading(false);
+      setMessages(prev => prev.map(m => m.id === loadingMsg.id ? { ...m, text: "Error fetching response. Check your API key.", isLoading: false } : m));
+    }
+  };
+
+  const reset = () => {
+    setScreen("input");
+    setMessages([]);
+    setHistory([]);
+    setRound(1);
+  };
+
+  if (screen === "input") return <TopicInput onStart={startDebate} />;
+
+  if (screen === "vote") return (
+    <div>
+      <DebateHeader topic={topic} round={TOTAL_ROUNDS} totalRounds={TOTAL_ROUNDS} onReset={reset} />
+      <VoteScreen topic={topic} onReset={reset} />
+    </div>
+  );
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+    <div style={{ maxWidth: 680, margin: "0 auto" }}>
+      <DebateHeader topic={topic} round={round} totalRounds={TOTAL_ROUNDS} onReset={reset} />
+      <div style={{ padding: "24px 20px" }}>
+        {messages.map((msg, i) => (
+          <AgentBubble
+            key={msg.id || i}
+            side={msg.side}
+            name={msg.side === "for" ? "Agent FOR" : "Agent AGAINST"}
+            text={msg.text}
+            round={msg.round}
+            isLoading={msg.isLoading}
+          />
+        ))}
+        <div ref={bottomRef} />
+      </div>
+    </div>
+  );
 }
-
-export default App
