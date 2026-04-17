@@ -12,6 +12,46 @@ const AGENT_PERSONAS = {
   },
 };
 
+async function fetchWithTimeout(url, options, timeoutMs = 15000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, { ...options, signal: controller.signal });
+    clearTimeout(timer);
+    return response;
+  } catch (err) {
+    clearTimeout(timer);
+    throw err;
+  }
+}
+
+async function fetchWithRetry(url, options, retries = 3, delayMs = 3000) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const response = await fetchWithTimeout(url, options);
+      const data = await response.json();
+
+      if (data.error) {
+        console.warn(`Attempt ${i + 1} failed:`, data.error.message);
+        if (i < retries - 1) {
+          await new Promise(res => setTimeout(res, delayMs));
+          continue;
+        }
+        throw new Error(data.error.message);
+      }
+
+      return data;
+    } catch (err) {
+      console.warn(`Attempt ${i + 1} error:`, err.message);
+      if (i < retries - 1) {
+        await new Promise(res => setTimeout(res, delayMs));
+      } else {
+        throw err;
+      }
+    }
+  }
+}
+
 export async function getAgentArgument({ topic, side, history, round, totalRounds, isClosing }) {
   const persona = AGENT_PERSONAS[side];
 
@@ -30,7 +70,7 @@ ${isClosing ? "This is your CLOSING STATEMENT. Make it powerful and conclusive."
       : []),
   ];
 
-  const response = await fetch(GROQ_URL, {
+  const data = await fetchWithRetry(GROQ_URL, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -44,6 +84,5 @@ ${isClosing ? "This is your CLOSING STATEMENT. Make it powerful and conclusive."
     }),
   });
 
-  const data = await response.json();
   return data.choices[0].message.content;
 }

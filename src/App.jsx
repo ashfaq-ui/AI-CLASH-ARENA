@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { getAgentArgument } from "./services/grogService";
+import { getAgentArgument } from "./services/geminiService";
 import TopicInput from "./components/TopicInput";
 import AgentBubble from "./components/AgentBubble";
 import DebateHeader from "./components/DebateHeader";
@@ -38,7 +38,14 @@ export default function App() {
     setIsLoading(true);
     setCurrentSide(side);
 
-    const loadingMsg = { id: Date.now(), side, round: currentRound, text: "", isLoading: true };
+    const loadingMsg = {
+      id: Date.now(),
+      side,
+      round: currentRound,
+      text: "",
+      isLoading: true,
+    };
+
     setMessages(prev => [...prev, loadingMsg]);
 
     try {
@@ -51,10 +58,17 @@ export default function App() {
         isClosing,
       });
 
-      const newMessage = { role: "assistant", content: `[${side.toUpperCase()}]: ${text}` };
+      const newMessage = {
+        role: "assistant",
+        content: `[${side.toUpperCase()}]: ${text}`,
+      };
       const nextHistory = [...currentHistory, newMessage];
 
-      setMessages(prev => prev.map(m => m.id === loadingMsg.id ? { ...m, text, isLoading: false } : m));
+      setMessages(prev =>
+        prev.map(m =>
+          m.id === loadingMsg.id ? { ...m, text, isLoading: false } : m
+        )
+      );
       setHistory(nextHistory);
       setIsLoading(false);
 
@@ -70,13 +84,29 @@ export default function App() {
       if (side === "against") setRound(nextRound);
 
       setTimeout(() => {
-        runTurn(nextSide, currentTopic || topic, nextHistory, nextRound, nextRound === TOTAL_ROUNDS && nextSide === "against");
+        runTurn(
+          nextSide,
+          currentTopic || topic,
+          nextHistory,
+          nextRound,
+          nextRound === TOTAL_ROUNDS && nextSide === "against"
+        );
       }, 4000);
 
     } catch (err) {
       console.error(err);
       setIsLoading(false);
-      setMessages(prev => prev.map(m => m.id === loadingMsg.id ? { ...m, text: "Error fetching response. Check your API key.", isLoading: false } : m));
+      setMessages(prev =>
+        prev.map(m =>
+          m.id === loadingMsg.id
+            ? {
+                ...m,
+                text: "Rate limit hit — retrying failed. Please wait 30 seconds and try a new debate.",
+                isLoading: false,
+              }
+            : m
+        )
+      );
     }
   };
 
@@ -85,20 +115,32 @@ export default function App() {
     setMessages([]);
     setHistory([]);
     setRound(1);
+    setIsLoading(false);
+    setCurrentSide("for");
   };
 
   if (screen === "input") return <TopicInput onStart={startDebate} />;
 
   if (screen === "vote") return (
     <div>
-      <DebateHeader topic={topic} round={TOTAL_ROUNDS} totalRounds={TOTAL_ROUNDS} onReset={reset} />
+      <DebateHeader
+        topic={topic}
+        round={TOTAL_ROUNDS}
+        totalRounds={TOTAL_ROUNDS}
+        onReset={reset}
+      />
       <VoteScreen topic={topic} onReset={reset} />
     </div>
   );
 
   return (
     <div style={{ maxWidth: 680, margin: "0 auto" }}>
-      <DebateHeader topic={topic} round={round} totalRounds={TOTAL_ROUNDS} onReset={reset} />
+      <DebateHeader
+        topic={topic}
+        round={round}
+        totalRounds={TOTAL_ROUNDS}
+        onReset={reset}
+      />
       <div style={{ padding: "24px 20px" }}>
         {messages.map((msg, i) => (
           <AgentBubble
